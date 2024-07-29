@@ -10,7 +10,7 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-#define TEST_TIME_OUT 1500 //ms
+#define TEST_TIME_OUT 50//ms    8个ms空口时间   8+10ms  linux轮询时间    //实际上50不够   100ms也是会有偶尔丢  150测试稳定 linux不是事实性的
 #define CHUNK_SIZE 200
 
 typedef struct _loraParam
@@ -52,6 +52,9 @@ private slots:
 
     void on_pushButtonTransmit_released();
 
+
+    void on_ate_clicked();
+
 private:
     Ui::MainWindow *ui;
     QSerialPort serialPort;
@@ -62,7 +65,7 @@ private:
     int retryCount = 0;       // 重试次数
     QTimer timeoutTimer;      // 超时计时器
     int currentChunkSize;
-    bool isTransmitting;  // 添加此标志
+    bool isTransmitting = false;  // 添加此标志
     bool isWaitingForStartConfirmation = false;
 
     QTimer updateTimer;       // 更新速率计时器
@@ -72,11 +75,15 @@ private:
     QByteArray accumulatedData;   //串口收到的内容累积
     loraParam_t sx1280 ;
 
+
     //丢包率测试
     QTimer rfTimer;
     bool isTestRunning  = false;
     uint64_t totalPacketsSent  = 0;
     uint64_t acknowledgedPackets  = 0;
+    bool waitingTestForAck = false;
+    bool isTxDone  = false;
+    uint64_t testStartTime;
 
 };
 

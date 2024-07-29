@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>991</width>
+    <width>1000</width>
     <height>442</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>780</width>
+    <width>1000</width>
     <height>442</height>
    </size>
   </property>
@@ -136,6 +136,22 @@
        </property>
       </spacer>
      </item>
+     <item>
+      <widget class="QPushButton" name="ate">
+       <property name="maximumSize">
+        <size>
+         <width>120</width>
+         <height>22</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+       <property name="text">
+        <string>Echo</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
    <widget class="QFrame" name="log">
@@ -246,7 +262,7 @@ p, li { white-space: pre-wrap; }
         </font>
        </property>
        <property name="text">
-        <string>LoRa 2.4G</string>
+        <string>LoRa Config</string>
        </property>
       </widget>
      </item>
@@ -261,17 +277,27 @@ p, li { white-space: pre-wrap; }
       <widget class="QComboBox" name="channelBox">
        <item>
         <property name="text">
-         <string>2403000000</string>
+         <string>915000000</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>2425000000</string>
+         <string>914800000</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>2479000000</string>
+         <string>914600000</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>915200000</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>915400000</string>
         </property>
        </item>
       </widget>
@@ -294,11 +320,6 @@ p, li { white-space: pre-wrap; }
       <widget class="QComboBox" name="sf">
        <item>
         <property name="text">
-         <string>10</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
          <string>5</string>
         </property>
        </item>
@@ -310,26 +331,6 @@ p, li { white-space: pre-wrap; }
        <item>
         <property name="text">
          <string>7</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>8</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>9</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>11</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>12</string>
         </property>
        </item>
       </widget>
@@ -397,22 +398,12 @@ p, li { white-space: pre-wrap; }
       <widget class="QComboBox" name="bwBox">
        <item>
         <property name="text">
-         <string>1600</string>
+         <string>125</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>800</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>400</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>200</string>
+         <string>250</string>
         </property>
        </item>
       </widget>
@@ -686,6 +677,9 @@ p, li { white-space: pre-wrap; }
      <enum>QFrame::Raised</enum>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="spacing">
+      <number>10</number>
+     </property>
      <item>
       <widget class="QLabel" name="label_11">
        <property name="font">
@@ -755,16 +749,66 @@ p, li { white-space: pre-wrap; }
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="label_14">
+      <widget class="QLabel" name="label_15">
        <property name="text">
-        <string>Packet Loss Rate:</string>
+        <string>MTU(Byte):</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="lostRate">
+      <widget class="QLineEdit" name="lineEditFile_mtu">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>60</width>
+         <height>23</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>60</width>
+         <height>23</height>
+        </size>
+       </property>
        <property name="text">
-        <string>-</string>
+        <string>100</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_16">
+       <property name="text">
+        <string>Max Test Packet Count:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="MaxPacket">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>60</width>
+         <height>23</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>60</width>
+         <height>23</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>512</string>
        </property>
       </widget>
      </item>
@@ -797,20 +841,25 @@ p, li { white-space: pre-wrap; }
       </widget>
      </item>
      <item>
-      <spacer name="verticalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
+      <widget class="QLabel" name="label_14">
+       <property name="text">
+        <string>Packet Loss Rate:</string>
        </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Fixed</enum>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lostRate">
+       <property name="text">
+        <string>-</string>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>135</height>
-        </size>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="bytesPerSecond">
+       <property name="text">
+        <string>-</string>
        </property>
-      </spacer>
+      </widget>
      </item>
     </layout>
    </widget>
