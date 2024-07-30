@@ -31,10 +31,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     // 设置lineEditFile为只读
     ui->lineEditFile->setReadOnly(true);
+    ui->textEditLog->setReadOnly(true);
 
-    //设置日志串口的滚动条
 
-    connect(&updateTimer, &QTimer::timeout, this, &MainWindow::on_updateTimer_timeout);
     connect(&rfTimer, &QTimer::timeout, this, &MainWindow::testTimer_timeout);
 
     rfTimer.setInterval(TEST_TIME_OUT);
@@ -94,6 +93,10 @@ void MainWindow::on_pushButtonUart_released()
             ui->read->setEnabled(true);
 
             ui->comboBoxUart->setEnabled(false);
+
+            QString confCmd = QString("AT+NWM=0\r\n");
+            serialPort.write(confCmd.toLocal8Bit());
+
         }
     }
 }
@@ -105,14 +108,6 @@ void MainWindow::on_pushButtonFile_released()
                                                  "Images (*.jpg;*.png);;All Files (*.*)");
     if (!filename.isEmpty()) {
         ui->lineEditFile->setText(filename);
-
-        //QImageReader reader(filename);
-        //reader.setScaledSize(QSize(380, 230));  // 设置缩放后的目标大小
-        //reader.setQuality(90);  // 如果是JPEG，可以设置读取质量
-        //reader.setTransformation(QImageIOHandler::Transformation::TransformationNone);  // 无特殊变换
-        //QImage image = reader.read();  // 读取图像
-
-
 
         // 获取文件大小信息
         QFileInfo fileInfo(filename);
@@ -131,73 +126,99 @@ void MainWindow::on_pushButtonFile_released()
 // 发送文件按钮
 void MainWindow::on_pushButtonTransmit_clicked()
 {
+    resetTransmissionState();
+
+    isTestRunning = false;
+    isTransmitImage = true;  // 在开始传输时设置标志
+
+    //打开文件
     auto filename = ui->lineEditFile->text();
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "Warning", filename + " open failed: " + file.errorString());
         return;
     }
-
-    QString confString = QString("AT+PRECV=0\r\n");
-    serialPort.write(confString.toLocal8Bit());
-
-    confString = QString("AT+PRECV=65533\r\n");
-    serialPort.write(confString.toLocal8Bit());
-
-
     fileData = file.readAll();
     fileSize = fileData.size();
     offset = 0;
-    isTransmitting = true;  // 在开始传输时设置标志
+
+    //打开串口的接收模式
+    QString confString = QString("AT+PRECV=0\r\n");
+    serialPort.write(confString.toLocal8Bit());
+    confString = QString("AT+PRECV=65533\r\n");
+    serialPort.write(confString.toLocal8Bit());
+
 
     // 发送开始命令
     QByteArray fileNameBytes = currentFileName.toUtf8();
     // 将QByteArray转换为16进制表示
     QString hexFileName = fileNameBytes.toHex();
 
+    packetType = StartPacket;
     QString startCommand = QString("AT+PSEND=000055550000")+ hexFileName +"\r\n";
     serialPort.write(startCommand.toLocal8Bit());
 
     //等待txdone  在启动超时
-
     while(!this->isTxDone )
     {
         QApplication::processEvents();
     }
-    isWaitingForStartConfirmation = true;
+
+
     timeoutTimer.start(TEST_TIME_OUT);
 
-    //速率统计
-    updateTimer.start(1000);  // 每秒更新一次速率显示
-    elapsedTimer.start();  // 开始计时
 
+    //设置相关状态栏失能
     ui->pushButtonTransmit->setEnabled(false);
     ui->lineEditFile->setEnabled(false);
     ui->pushButtonFile->setEnabled(false);
     ui->testButton->setEnabled(false);
     ui->read->setEnabled(false);
 
+    //停止测试模式
+    //to do
+
+    imageStartTime = QDateTime::currentMSecsSinceEpoch();
+
 }
 
 void MainWindow::sendNextChunk() {
-    if (offset < fileSize && !isWaitingForConfirmation) {
-        const int chunkSize = CHUNK_SIZE;
+
+        timeoutTimer.stop();
+        const int chunkSize = ui->lineEditFile_mtu->text().toInt();
         currentChunkSize = qMin(chunkSize, fileSize - offset);  // 更新 currentChunkSize
         QByteArray chunk = fileData.mid(offset, currentChunkSize);
         QString hexData = chunk.toHex();
 
+        packetType = DataPacket;
         QString command = "AT+PSEND=" + hexData + "\r\n";
         serialPort.write(command.toLocal8Bit());
 
+        isTxDone = false;
         while(!this->isTxDone )
         {
             QApplication::processEvents();
         }
 
-        isWaitingForConfirmation = true;
         timeoutTimer.start(TEST_TIME_OUT);
-        qDebug() << "Data sent, waiting for confirmation...";
-    }
+        qDebug()<<"SendNextChunk";
+
+        //统计
+        int progress = static_cast<int>((static_cast<double>(offset) / fileSize) * 100);
+        ui->progressBar->setValue(progress);
+
+        double lossRatePercentage = 0.0;
+        if (ackReceived > 0) {  // 防止除以零
+            lossRatePercentage = (double)ackReceived / (double)packetsSent * 100.0;
+        }
+
+        double bytesPerSecond =(double)offset /((QDateTime::currentMSecsSinceEpoch() - this->imageStartTime)/1000.0) * 8 / 1000;
+        ui->labelRate->setText("Rate: "+QString::number(bytesPerSecond,'f', 3)+" kbps"+"\t\t"+QString::number(QDateTime::currentMSecsSinceEpoch()/1000 - this->imageStartTime/1000)\
+                                    +" s");
+
+        ui->labelRate_2->setText(QString::number(ackReceived)+"/"+QString::number(packetsSent) + "\t\t"+ QString::number(lossRatePercentage, 'f', 2) + "%");
+        packetsSent++;
+
 }
 
 void MainWindow::handleReadyRead() {
@@ -213,7 +234,7 @@ void MainWindow::handleReadyRead() {
 
     this->accumulatedData += responseData;
 
-    qDebug()<<QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz")<<"accumulatedData"<<accumulatedData;
+    //qDebug()<<QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz")<<"accumulatedData"<<accumulatedData;
 
     QString rssi(accumulatedData);    //这个要放在前面 不然放在后面都清空了
     //提取RSSI 和 SNR
@@ -226,9 +247,8 @@ void MainWindow::handleReadyRead() {
         ui->rssi->setText(rssi);
         ui->snr->setText(snr);
 
-        qDebug() << "RSSI:" << rssi << "SNR:" << snr;
     } else {
-        //qDebug() << "No match found";
+
     }
 
 
@@ -240,7 +260,7 @@ void MainWindow::handleReadyRead() {
     }
 
 
-    if (accumulatedData.contains("+EVT:SEND CONFIRM OK") || (accumulatedData.contains("55AA55"))) {
+    if (accumulatedData.contains("55AA55")) {  //收到ACK
 
         accumulatedData.clear();    //这里是重点  在调用sendTestCmd之前要清一下   其实handleReadyRead 应该触发一个槽函数是最合理的  不应该直接在这里处理  这里只处理底层
         if(isTestRunning)
@@ -252,50 +272,48 @@ void MainWindow::handleReadyRead() {
                 sendTestCmd();//但是同时也收到了 55AA55 又来了一次sendTestCmd
             }else
             {
-                qDebug()<<QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz")<<"无效接收ACK";
+                qDebug()<<QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz")<<"无效接收ACK";  //响应来晚了 已经有新一包的数据了
             }
         }
 
 
-
-        if (isWaitingForStartConfirmation) {
-            // 收到开始确认，开始发送数据
-            isWaitingForStartConfirmation = false;
-            timeoutTimer.stop();
-            retryCount = 0;
-            sendNextChunk();
-        } else if (isTransmitting) {
-            // 成功确认，继续发送下一块数据
-            offset += currentChunkSize;
-            isWaitingForConfirmation = false;
-            timeoutTimer.stop();
-            retryCount = 0;
-            //accumulatedData.clear(); // Clear the buffer after processing
-
-            // 更新进度条
-            int progress = static_cast<int>((static_cast<double>(offset) / fileSize) * 100);
-            ui->progressBar->setValue(progress);
-
-            if (offset < fileSize) {
-                sendNextChunk();
-            } else {
-                qDebug() << "All data has been sent successfully.";
-                ui->progressBar->setValue(100);  // 确保进度条达到 100%
-
-                // 发送结束命令
-                QString stopCommand = "AT+SEND=FEFDFC\r\n";
-                serialPort.write(stopCommand.toLocal8Bit());
-                isTransmitting = false;
-
-                QMessageBox::information(this, "Transfer Complete", "The file has been successfully sent!");
-                //elapsedTimer.stop();
-
-            }
-        } else
+        if(isTransmitImage)
         {
-            //
-        }
+            retryCount = 0;
 
+            if(packetType == StartPacket)
+            {
+                sendNextChunk();
+
+            }else if(packetType == DataPacket)
+            {
+                // 成功确认，继续发送下一块数据
+                offset += currentChunkSize;
+                if(offset < fileSize)
+                {
+                    sendNextChunk();
+                    ackReceived ++ ;
+                }else
+                {
+                    timeoutTimer.stop();
+                    //发送结尾包
+                    packetType = EndPacket;
+                    sendEndPacket();
+                }
+
+                // 更新进度条
+
+
+            }else if(packetType == EndPacket)
+            {
+
+
+            }else
+            {
+
+
+            }
+        }
     }
 
     //大于100字节 清空buffer
@@ -308,29 +326,22 @@ void MainWindow::handleReadyRead() {
 
 
 void MainWindow::on_timeout() {
-    if (isWaitingForConfirmation || isWaitingForStartConfirmation) {
-        retryCount++;
-        qDebug() << "Timeout reached, retry count: " << retryCount;
 
-        if (retryCount <= 3) {
-            isWaitingForConfirmation = false;  // 重置等待数据块确认标志
-            isWaitingForStartConfirmation = false;  // 重置等待开始确认标志   //这个标志位有BUG
+    retryCount++;
+    qDebug() << "Timeout reached, retry count: " << retryCount;
 
-            if (isWaitingForStartConfirmation) {
-                // 重试发送开始命令
-                QString startCommand = "AT+SEND=START\r\n";   //
-                serialPort.write(startCommand.toLocal8Bit());
-            } else {
-                // 重试发送当前数据块
-                sendNextChunk();
-            }
-        } else {
-            QMessageBox::critical(this, "Error", "Transmission failed after 3 retries.");
-            retryCount = 0;  // 重置重试计数
-            isWaitingForConfirmation = false;
-            isWaitingForConfirmation = false;  // 重置等待开始确认标志
-            timeoutTimer.stop();
+    if (retryCount <= 3) {
+        if(packetType == DataPacket)
+        {
+            sendNextChunk();
         }
+    } else {
+        QMessageBox::critical(this, "Error", "Transmission failed after 3 retries.");
+        retryCount = 0;  // 重置重试计数
+        timeoutTimer.stop();
+
+        //清空标志位  重新传输
+        //to do
     }
 }
 
@@ -341,35 +352,32 @@ void MainWindow::resetTransmissionState() {
     fileData.clear();
     fileSize = 0;
     offset = 0;
-    isTransmitting = false;
-    isWaitingForConfirmation = false;
+    isTransmitImage = false;
     retryCount = 0;
     timeoutTimer.stop();
     ui->progressBar->setValue(0);
     qDebug() << "Transmission state has been reset.";
+
+    packetsSent = 0;       // 实际发包数量
+    ackReceived = 0;       // 收到ACK的发包数量
 }
 
 
+void MainWindow::sendEndPacket() {
+     QString stopCommand = "AT+PSEND=FEFDFC\r\n";
+     serialPort.write(stopCommand.toLocal8Bit());
+
+     stopCommand = "AT+PRECV=0\r\n";
+     serialPort.write(stopCommand.toLocal8Bit());
+     isTransmitImage = false;
+     QMessageBox::information(this, "Transfer Complete", "The file has been successfully sent!");
+
+     ui->progressBar->setValue(100);
+}
+
 
 void MainWindow::on_updateTimer_timeout() {
-    if(offset == fileSize)  //发送完了就不需要更新速率
-    {
-        return ;
-    }
 
-    int currentOffset = offset; // 获取当前偏移量
-    int bytesTransmitted = currentOffset - lastOffset; // 计算这一秒内传输的字节
-    double timeElapsed = 1.0; // 计算时间差（秒）
-
-    double rate = bytesTransmitted / timeElapsed; // 计算速率
-
-    int elapsedTime = elapsedTimer.elapsed();
-    QString timeText = QString::number(elapsedTime / 1000) + " seconds";  // 整数秒
-
-    ui->labelRate->setText("Current Rate: " + QString::number(rate, 'f', 2) + " Bytes/s \t" + timeText);
-
-    lastOffset = currentOffset; // 更新上次偏移量
-    //elapsedTimer.restart(); // 重启计时器
 }
 
 void MainWindow::on_read_released()
@@ -380,7 +388,6 @@ void MainWindow::on_read_released()
     //    confCmd = "AT+NWM=0r\n";
     //    serialPort.write(confCmd.toLocal8Bit());
     //    QThread::msleep(1000);  // 睡眠500毫秒
-
 
     confCmd = "AT+PRECV=0\r\n";
     serialPort.write(confCmd.toLocal8Bit());
@@ -424,11 +431,6 @@ void MainWindow::on_testButton_released()
     {
         ui->testButton->setText("Stop Test");
 
-        //        QString conf = "AT+PRECV=0\r\n";   //先退出接收模式
-        //        serialPort.write(conf.toLocal8Bit());
-
-        //conf = "AT+PRECV=65533\r\n";   //在进入接收模式
-        //serialPort.write(conf.toLocal8Bit());
         isTestRunning  = true;
         sendTestCmd();
 
@@ -549,8 +551,6 @@ void MainWindow::on_pushButtonTransmit_released()
 //sendTestCmd
 //accumulatedData:[0] "+EVT:RXP2P:-7:6:55AA55\r\n"
 //无效接收ACK
-
-
 
 
 void MainWindow::on_ate_clicked()
