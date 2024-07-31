@@ -219,6 +219,7 @@ void MainWindow::sendNextChunk() {
         ui->labelRate_2->setText(QString::number(ackReceived)+"/"+QString::number(packetsSent) + "\t\t"+ QString::number(lossRatePercentage, 'f', 2) + "%");
         packetsSent++;
 
+
 }
 
 void MainWindow::handleReadyRead() {
@@ -321,6 +322,9 @@ void MainWindow::handleReadyRead() {
     {
         accumulatedData.clear();
     }
+
+    QDateTime currentDateTime = QDateTime::currentDateTime();
+    ui->time->setText(currentDateTime.toString());
 }
 
 
@@ -330,7 +334,7 @@ void MainWindow::on_timeout() {
     retryCount++;
     qDebug() << "Timeout reached, retry count: " << retryCount;
 
-    if (retryCount <= 3) {
+    if (retryCount <= 50) {
         if(packetType == DataPacket)
         {
             sendNextChunk();
@@ -367,8 +371,8 @@ void MainWindow::sendEndPacket() {
      QString stopCommand = "AT+PSEND=FEFDFC\r\n";
      serialPort.write(stopCommand.toLocal8Bit());
 
-     stopCommand = "AT+PRECV=0\r\n";
-     serialPort.write(stopCommand.toLocal8Bit());
+//     stopCommand = "AT+PRECV=0\r\n";
+//     serialPort.write(stopCommand.toLocal8Bit());
      isTransmitImage = false;
      QMessageBox::information(this, "Transfer Complete", "The file has been successfully sent!");
 
@@ -461,12 +465,13 @@ void MainWindow::sendTestCmd()
 
     uint64_t maxPacket = ui->MaxPacket->text().toInt();
 
-    if(totalPacketsSent >= maxPacket)
+    if(acknowledgedPackets > maxPacket)
     {
         ui->testButton->setText("Start Test");
         rfTimer.stop();
         isTestRunning  = false;
         totalPacketsSent = 0;
+        acknowledgedPackets = 0;
         return;
     }
 

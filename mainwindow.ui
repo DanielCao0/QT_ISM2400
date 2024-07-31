@@ -143,6 +143,28 @@
       </spacer>
      </item>
      <item>
+      <widget class="QLabel" name="time">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>23</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>22</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+       <property name="text">
+        <string>Time:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="ate">
        <property name="maximumSize">
         <size>
