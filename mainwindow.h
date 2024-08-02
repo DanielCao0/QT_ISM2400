@@ -10,16 +10,12 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-#define TEST_TIME_OUT 100//ms    8个ms空口时间   8+10ms  linux轮询时间    //实际上50不够   100ms也是会有偶尔丢  150测试稳定 linux不是事实性的
-
-
 enum PacketType {
     NotStarted,
     DataPacket,  // 发送数据包
     StartPacket, // 开始包
     EndPacket    // 结束包
 };
-
 
 class MainWindow : public QMainWindow
 {
@@ -54,6 +50,8 @@ private slots:
 
     void on_ate_clicked();
 
+    void on_sf_activated(const QString &arg1);
+
 private:
     Ui::MainWindow *ui;
 
@@ -69,6 +67,7 @@ private:
 
     int retryCount = 0;       // 重试次数
     QTimer timeoutTimer;      // 超时计时器
+    int timeoutValue = 100;      // 超时计时器   默认按照SF5 BW125计算
 
 
     bool isTransmitImage = false;  // 添加此标志

@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     connect(&rfTimer, &QTimer::timeout, this, &MainWindow::testTimer_timeout);
 
-    rfTimer.setInterval(TEST_TIME_OUT);
+    rfTimer.setInterval(timeoutValue);
     rfTimer.setSingleShot(true);
 }
 
@@ -165,7 +165,7 @@ void MainWindow::on_pushButtonTransmit_clicked()
     }
 
 
-    timeoutTimer.start(TEST_TIME_OUT);
+    timeoutTimer.start(timeoutValue);
 
 
     //设置相关状态栏失能
@@ -203,7 +203,7 @@ void MainWindow::sendNextChunk() {
             QApplication::processEvents();
         }
 
-        timeoutTimer.start(TEST_TIME_OUT);
+        timeoutTimer.start(timeoutValue);
         qDebug()<<"SendNextChunk";
 
         //统计
@@ -272,10 +272,10 @@ void MainWindow::handleReadyRead() {
         int downlinkSNR = secondByte.toInt(&ok,16);
 
         ui->rssi_2->setText(QString::number((int8_t)downlinkRSSI));
-        ui->snr_2->setText(QString::number(downlinkSNR));
+        ui->snr_2->setText(QString::number((int8_t)downlinkSNR));
 
     } else {
-        qDebug() << "Pattern not found!";
+        //qDebug() << "Pattern not found!";
     }
 
 
@@ -514,11 +514,12 @@ void MainWindow::sendTestCmd()
     totalPacketsSent += 1;
 
     // 设置超时时间（毫秒）
-    int timeout = 1000; //
+    int timeout = 1000 + timeoutValue; //
     qint64 startTime = QDateTime::currentMSecsSinceEpoch();
     qint64 elapsedTime = 0;
 
     while(!this->isTxDone && elapsedTime < timeout)
+    //while(!this->isTxDone)
     {
         QApplication::processEvents();
         elapsedTime = QDateTime::currentMSecsSinceEpoch() - startTime;
@@ -591,3 +592,51 @@ void MainWindow::on_ate_clicked()
     serialPort.write(confCmd.toLocal8Bit());
 }
 
+
+void MainWindow::on_sf_activated(const QString &arg1) {
+    qDebug()<<"on_sf_activated"<<arg1;
+    int index = arg1.toInt();
+
+    int fixValue = 100;
+
+    switch (index) {
+        case 5:
+            // 处理SF为5的逻辑
+            timeoutValue = fixValue + 2*8;
+            break;
+        case 6:
+            // 处理SF为6的逻辑
+            timeoutValue = fixValue + 2*16;
+            break;
+        case 7:
+            // 处理SF为7的逻辑
+            timeoutValue = fixValue + 2*30;
+            break;
+        case 8:
+            // 处理SF为8的逻辑
+            timeoutValue = fixValue + 2*62;
+            break;
+        case 9:
+            // 处理SF为9的逻辑
+            timeoutValue = fixValue + 2*103;
+            break;
+        case 10:
+            // 处理SF为10的逻辑
+            timeoutValue = fixValue + 2*206;
+            break;
+        case 11:
+            // 处理SF为11的逻辑
+            timeoutValue = fixValue + 2*413;
+            break;
+        case 12:
+            // qDebug()<<"12"<<arg1;
+            // 处理SF为12的逻辑
+            timeoutValue = fixValue + 2*827;
+            break;
+        default:
+            qDebug() << "Unknown SF value:" << arg1;
+            break;
+    }
+    rfTimer.setInterval(timeoutValue);
+    timeoutTimer.setInterval(timeoutValue);
+}
