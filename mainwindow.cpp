@@ -190,8 +190,11 @@ void MainWindow::sendNextChunk() {
         QByteArray chunk = fileData.mid(offset, currentChunkSize);
         QString hexData = chunk.toHex();
 
+        currentPacketIndex++;
+        QString hexString = QString("%1").arg(currentPacketIndex, 2, 16, QChar('0'));
+
         packetType = DataPacket;
-        QString command = "AT+PSEND=" + hexData + "\r\n";
+        QString command = "AT+PSEND="+ hexString + hexData + "\r\n";
         serialPort.write(command.toLocal8Bit());
 
         isTxDone = false;
@@ -253,6 +256,29 @@ void MainWindow::handleReadyRead() {
     }
 
 
+    // 创建正则表达式以匹配特定模式
+    QRegularExpression re("55AA55([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})");
+    QRegularExpressionMatch match = re.match(accumulatedData);
+
+    if (match.hasMatch()) {
+        QString firstByte = match.captured(1);  // D1
+        QString secondByte = match.captured(2); // 08
+        qDebug() << "First Byte:" << firstByte;
+        qDebug() << "Second Byte:" << secondByte;
+
+        bool ok;
+        int downlinkRSSI = firstByte.toUInt(&ok,16);
+
+        int downlinkSNR = secondByte.toInt(&ok,16);
+
+        ui->rssi_2->setText(QString::number((int8_t)downlinkRSSI));
+        ui->snr_2->setText(QString::number(downlinkSNR));
+
+    } else {
+        qDebug() << "Pattern not found!";
+    }
+
+
     if (accumulatedData.contains("+EVT:TXP2P DONE"))  //不区分测试模式还是图传
     {
         qDebug()<<"+EVT:TXP2P DONE";
@@ -301,21 +327,19 @@ void MainWindow::handleReadyRead() {
                     packetType = EndPacket;
                     sendEndPacket();
                 }
-
                 // 更新进度条
-
-
             }else if(packetType == EndPacket)
             {
-
 
             }else
             {
 
-
             }
         }
     }
+
+
+
 
     //大于100字节 清空buffer
     if(accumulatedData.size()>256)
@@ -371,8 +395,9 @@ void MainWindow::sendEndPacket() {
      QString stopCommand = "AT+PSEND=FEFDFC\r\n";
      serialPort.write(stopCommand.toLocal8Bit());
 
-//     stopCommand = "AT+PRECV=0\r\n";
-//     serialPort.write(stopCommand.toLocal8Bit());
+//   stopCommand = "AT+PRECV=0\r\n";
+//   serialPort.write(stopCommand.toLocal8Bit());
+
      isTransmitImage = false;
      QMessageBox::information(this, "Transfer Complete", "The file has been successfully sent!");
 
@@ -498,6 +523,7 @@ void MainWindow::sendTestCmd()
         QApplication::processEvents();
         elapsedTime = QDateTime::currentMSecsSinceEpoch() - startTime;
     }
+
     //    if (!this->isTxDone) {
 
     //        // 处理超时情况，如重试或报错

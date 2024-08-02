@@ -10,7 +10,7 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-#define TEST_TIME_OUT 50//ms    8个ms空口时间   8+10ms  linux轮询时间    //实际上50不够   100ms也是会有偶尔丢  150测试稳定 linux不是事实性的
+#define TEST_TIME_OUT 100//ms    8个ms空口时间   8+10ms  linux轮询时间    //实际上50不够   100ms也是会有偶尔丢  150测试稳定 linux不是事实性的
 
 
 enum PacketType {
@@ -65,10 +65,10 @@ private:
     int fileSize;             // 文件的大小
     int offset;               // 当前已发送数据的位置
     int currentChunkSize;     //当前发送包的大小
+    uint8_t currentPacketIndex = 0;
 
     int retryCount = 0;       // 重试次数
     QTimer timeoutTimer;      // 超时计时器
-
 
 
     bool isTransmitImage = false;  // 添加此标志
@@ -76,11 +76,9 @@ private:
     int packetsSent = 0;       // 实际发包数量
     int ackReceived = 0;       // 收到ACK的发包数量
 
-
     uint64_t imageStartTime;
 
     QByteArray accumulatedData;   //串口收到的内容累积
-
 
     //丢包率测试
     QTimer rfTimer;
