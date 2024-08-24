@@ -228,7 +228,7 @@ void MainWindow::sendNextChunk() {
 void MainWindow::handleReadyRead() {
     QByteArray responseData = serialPort.readAll();
 
-    //qDebug()<<"responseData"<<responseData;
+    qDebug()<<"responseData"<<responseData;
 
     QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
     QString logMessage = QString("[%1] %2").arg(timestamp).arg(QString::fromUtf8(responseData));
@@ -263,8 +263,8 @@ void MainWindow::handleReadyRead() {
     if (match.hasMatch()) {
         QString firstByte = match.captured(1);  // D1
         QString secondByte = match.captured(2); // 08
-        qDebug() << "First Byte:" << firstByte;
-        qDebug() << "Second Byte:" << secondByte;
+//        qDebug() << "First Byte:" << firstByte;
+//        qDebug() << "Second Byte:" << secondByte;
 
         bool ok;
         int downlinkRSSI = firstByte.toUInt(&ok,16);
@@ -281,14 +281,14 @@ void MainWindow::handleReadyRead() {
 
     if (accumulatedData.contains("+EVT:TXP2P DONE"))  //不区分测试模式还是图传
     {
-        qDebug()<<"+EVT:TXP2P DONE";
+        qDebug() << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "+EVT:TXP2P DONE";
         this->isTxDone = true;   //点可能在这  这里是true 会引起一个sendTestCmd发包
         accumulatedData.clear();
     }
 
 
     if (accumulatedData.contains("55AA55")) {  //收到ACK
-
+        qDebug() << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "ACK";
         accumulatedData.clear();    //这里是重点  在调用sendTestCmd之前要清一下   其实handleReadyRead 应该触发一个槽函数是最合理的  不应该直接在这里处理  这里只处理底层
         if(isTestRunning)
         {

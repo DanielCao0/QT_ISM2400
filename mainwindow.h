@@ -67,7 +67,7 @@ private:
 
     int retryCount = 0;       // 重试次数
     QTimer timeoutTimer;      // 超时计时器
-    int timeoutValue = 100;      // 超时计时器   默认按照SF5 BW125计算
+    int timeoutValue = 100+16;// 超时计时器   默认按照SF5 BW125计算
 
 
     bool isTransmitImage = false;  // 添加此标志
